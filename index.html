@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Marketing Course - Professional Training</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Razorpay -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+  <style>
+    .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .fade-in { animation: fadeIn 1s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+
+  <script>
+    // 1) EmailJS INIT – अपनी public key भरो
+    (function () {
+      emailjs.init({
+        publicKey: "xArHu_XtH202Ipkvt", // 👈 apni public key
+      });
+    })();
+
+    // 2) Email bhejne ka function
+    function sendReferralEmail(name, email, referralCode) {
+      console.log("Sending email to:", email, "code:", referralCode);
+
+      emailjs
+        .send(
+          "service_yfj2v4p",   // 👈 apna service ID
+          "template_gob8wow", // 👈 apna template ID
+          {
+            to_name: name,
+            to_email: email,
+            referral_code: referralCode,
+          }
+        )
+        .then(
+          function (response) {
+            console.log("EMAILJS SUCCESS:", response.status, response.text);
+          },
+          function (error) {
+            console.log("EMAILJS ERROR:", error);
+          }
+        );
+    }
+
+    // 3) SheetDB – Google Sheet me data save
+    function saveUserToSheetDB(payload) {
+      fetch("https://sheetdb.io/api/v1/x6ncgjj4jakbe", { // 👈 apna SheetDB URL
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: payload }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ SheetDB response:", data);
+        })
+        .catch((err) => {
+          console.log("❌ SheetDB error:", err);
+        });
+    }
+
+    // 4) Global vars + helper
+    let razorpayInstance;
+    let currentReferralCode = "";
+
+    function generateReferralCode() {
+      return (
+        "DMPRO-" +
+        Math.random().toString(36).substr(2, 4).toUpperCase() +
+        "-" +
+        Date.now().toString().slice(-6)
+      );
+    }
+
+    function scrollToCourse() {
+      document.getElementById("course").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function showPaymentForm() {
+      document.getElementById("paymentModal").classList.remove("hidden");
+      document.getElementById("paymentModal").classList.add("flex");
+    }
+
+    function hidePaymentForm() {
+      document.getElementById("paymentModal").classList.add("hidden");
+      document.getElementById("paymentModal").classList.remove("flex");
+    }
+
+    function showSuccessModal(code) {
+      document.getElementById("refCode").textContent = code;
+      document.getElementById("successModal").classList.remove("hidden");
+    }
+
+    function hideSuccessModal() {
+      document.getElementById("successModal").classList.add("hidden");
+      window.location.reload();
+    }
+
+    // 5) DOM load ke baad events
+    document.addEventListener("DOMContentLoaded", function () {
+      // Razorpay Payment
+      document
+        .getElementById("paymentForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          const name = document.getElementById("name").value;
+          const email = document.getElementById("email").value;
+          const mobile = document.getElementById("mobile").value;
+          const referral =
+            document.getElementById("referral").value || "None";
+
+          currentReferralCode = generateReferralCode();
+
+          const options = {
+            key: "rzp_test_RqJBufQs9PxRG9", // 👈 apna Razorpay key
+            amount: 100,                   // paise (₹1 = 100 paise)
+            currency: "INR",
+            name: "DigitalPro Academy",
+            description: "Digital Marketing Master Course",
+            image: "https://your-logo-url.com/logo.png",
+            handler: function (response) {
+              // 1) SheetDB – Google Sheet me store
+              saveUserToSheetDB({
+                name: name,                            // Sheet header: name
+                email: email,                          // email
+                mobile: mobile,                        // mobile
+                referral_input: referral,              // referral_input
+                referral_generated: currentReferralCode, // referral_generated
+                razorpay_payment_id: response.razorpay_payment_id, // razorpay_payment_id
+              });
+
+              // 2) Email
+              sendReferralEmail(name, email, currentReferralCode);
+
+              // 3) UI
+              showSuccessModal(currentReferralCode);
+            },
+            prefill: {
+              name: name,
+              email: email,
+              contact: mobile,
+            },
+            theme: {
+              color: "#7c3aed",
+            },
+          };
+
+          razorpayInstance = new Razorpay(options);
+          razorpayInstance.open();
+        });
+
+      // Modal outside click – close
+      document.querySelectorAll(".fixed.inset-0").forEach((modal) => {
+        modal.addEventListener("click", function (e) {
+          if (e.target === this) {
+            this.classList.add("hidden");
+          }
+        });
+      });
+    });
+  </script>
+</head>
+
+<body class="font-sans antialiased">
+
+  <!-- Landing Page -->
+  <div id="landing" class="min-h-screen gradient-bg text-white">
+    <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="text-2xl font-bold">DigitalPro Academy</div>
+      <button onclick="scrollToCourse()"
+        class="bg-white text-purple-600 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition duration-300">
+        View Course
+      </button>
+    </nav>
+
+    <div class="container mx-auto px-6 py-20 text-center">
+      <h1 class="text-5xl md:text-7xl font-bold mb-8 fade-in">Master Digital Marketing</h1>
+      <p class="text-xl md:text-2xl mb-12 max-w-3xl mx-auto fade-in">
+        India's Most Comprehensive Digital Marketing Course | 100+ Hours Content | Lifetime Access | Job Ready Training
+      </p>
+
+      <div class="fade-in">
+        <button onclick="scrollToCourse()"
+          class="bg-yellow-400 text-purple-900 text-xl px-12 py-6 rounded-full font-bold hover:bg-yellow-300 transform hover:scale-105 transition-all duration-300 shadow-2xl">
+          ₹999 केवल <span class="text-2xl">Buy Now</span>
+        </button>
+      </div>
+
+      <div class="mt-20 grid md:grid-cols-3 gap-8 text-left">
+        <div
+          class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 hover:bg-white/20 transition-all duration-300">
+          <div class="text-4xl mb-4">🎯</div>
+          <h3 class="text-2xl font-bold mb-4">Complete Syllabus</h3>
+          <p>SEO, Social Media, Google Ads, Email Marketing, Analytics सब कुछ</p>
+        </div>
+        <div
+          class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 hover:bg-white/20 transition-all duration-300">
+          <div class="text-4xl mb-4">💼</div>
+          <h3 class="text-2xl font-bold mb-4">Job Ready</h3>
+          <p>Live Projects + Interview Preparation + 100% Placement Support</p>
+        </div>
+        <div
+          class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 hover:bg-white/20 transition-all duration-300">
+          <div class="text-4xl mb-4">🔥</div>
+          <h3 class="text-2xl font-bold mb-4">Lifetime Access</h3>
+          <p>Course content हमेशा update रहेगा + Certificate मिलेगा</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Section -->
+  <section id="course" class="py-20 bg-gray-50">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-20">
+        <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">Course Curriculum</h2>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+          12 Modules | 100+ Hours | Practical Training
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <div class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+          <h3 class="text-2xl font-bold mb-4">1. SEO Mastery</h3>
+          <ul class="space-y-2 text-gray-600">
+            <li>• Keyword Research</li>
+            <li>• On-Page SEO</li>
+            <li>• Technical SEO</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+          <h3 class="text-2xl font-bold mb-4">2. Social Media Marketing</h3>
+          <ul class="space-y-2 text-gray-600">
+            <li>• Instagram Growth</li>
+            <li>• Facebook Ads</li>
+            <li>• LinkedIn Strategy</li>
+          </ul>
+        </div>
+        <div class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300">
+          <h3 class="text-2xl font-bold mb-4">3. Google Ads Expert</h3>
+          <ul class="space-y-2 text-gray-600">
+            <li>• Search Ads</li>
+            <li>• Display Ads</li>
+            <li>• YouTube Ads</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="text-center">
+        <button onclick="showPaymentForm()"
+          class="bg-gradient-to-r from-purple-600 to-purple-800 text-white text-2xl px-16 py-8 rounded-full font-bold hover:from-purple-700 hover:to-purple-900 transform hover:scale-105 transition-all duration-300 shadow-2xl">
+          Enroll Now - ₹999
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Payment Form Modal -->
+  <div id="paymentModal"
+       class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-8">
+        <div class="flex justify-between items-center mb-8">
+          <h2 class="text-3xl font-bold text-gray-800">Complete Purchase</h2>
+          <button onclick="hidePaymentForm()" class="text-2xl">&times;</button>
+        </div>
+
+        <form id="paymentForm" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+            <input type="text" id="name" required
+                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                   placeholder="Enter your full name">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+            <input type="email" id="email" required
+                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                   placeholder="your@email.com">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Mobile Number *</label>
+            <input type="tel" id="mobile" required
+                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                   placeholder="9876543210">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Referral Code (Optional)</label>
+            <input type="text" id="referral"
+                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                   placeholder="Enter referral code">
+          </div>
+
+          <div class="pt-4">
+            <button type="submit" id="rzp-button"
+                    class="w-full bg-gradient-to-r from-purple-600 to-purple-800 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-purple-900 transform hover:scale-[1.02] transition-all duration-200 shadow-xl">
+              Pay ₹999 Now
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal"
+       class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full text-center p-12">
+      <div class="text-6xl mb-6">✅</div>
+      <h3 class="text-2xl font-bold text-gray-800 mb-4">Payment Successful!</h3>
+      <p class="text-lg text-gray-600 mb-8">Your unique referral code has been sent to your email.</p>
+      <div id="referralCodeDisplay" class="bg-gray-100 p-6 rounded-2xl mb-8">
+        <p class="text-sm text-gray-600 mb-2">Your Referral Code:</p>
+        <div id="refCode" class="text-3xl font-bold text-purple-600 tracking-wider"></div>
+      </div>
+      <button onclick="hideSuccessModal()"
+              class="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition duration-200">
+        Done
+      </button>
+    </div>
+  </div>
+
+</body>
+</html>
